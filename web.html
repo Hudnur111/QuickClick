@@ -1,0 +1,454 @@
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reaktionszeit-Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <style>
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+        button.mode-btn {
+            @apply flex flex-col items-center justify-center rounded-xl border p-6 transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-offset-2;
+        }
+        button.mode-btn:focus {
+            outline: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <header class="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-6 shadow-lg">
+        <div class="container mx-auto px-4">
+            <h1 class="text-3xl md:text-4xl font-bold text-center">Reaktionszeit-Test</h1>
+            <p class="text-center mt-2 opacity-90">Teste deine Reflexe in verschiedenen Modi</p>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <div id="mode-selection" class="bg-white rounded-xl shadow-lg p-6 mb-8 fade-in">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Wähle deinen Spielmodus</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button
+                        onclick="startGame('solo')"
+                        class="mode-btn bg-blue-100 hover:bg-blue-200 border border-blue-300 text-blue-800"
+                        aria-label="Solo Modus - Teste dich alleine"
+                        type="button"
+                    >
+                        <i class="fas fa-user text-3xl mb-2" aria-hidden="true"></i>
+                        <h3 class="font-bold text-lg">Solo</h3>
+                        <p class="text-sm">Teste dich alleine</p>
+                    </button>
+                    <button
+                        onclick="startGame('duo')"
+                        class="mode-btn bg-green-100 hover:bg-green-200 border border-green-300 text-green-800"
+                        aria-label="Duo Modus - Zwei Spieler"
+                        type="button"
+                    >
+                        <i class="fas fa-user-friends text-3xl mb-2" aria-hidden="true"></i>
+                        <h3 class="font-bold text-lg">Duo</h3>
+                        <p class="text-sm">Zwei Spieler</p>
+                    </button>
+                    <button
+                        onclick="startGame('trio')"
+                        class="mode-btn bg-purple-100 hover:bg-purple-200 border border-purple-300 text-purple-800"
+                        aria-label="Trio Modus - Drei Spieler"
+                        type="button"
+                    >
+                        <i class="fas fa-users text-3xl mb-2" aria-hidden="true"></i>
+                        <h3 class="font-bold text-lg">Trio</h3>
+                        <p class="text-sm">Drei Spieler</p>
+                    </button>
+                </div>
+            </div>
+
+            <div id="game-area" class="hidden bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="p-4 bg-gray-800 text-white flex justify-between items-center">
+                    <h2 id="game-mode-title" class="text-xl font-bold" aria-live="polite"></h2>
+                    <div id="timer" class="font-mono text-lg" aria-live="polite" aria-atomic="true">0.000s</div>
+                </div>
+
+                <div id="player-areas" class="grid grid-cols-1 md:grid-cols-3 gap-0"></div>
+
+                <div id="waiting-screen" class="p-8 text-center">
+                    <div class="text-5xl mb-4" aria-hidden="true">⌛</div>
+                    <h3 class="text-xl font-semibold mb-2">Warte auf Start...</h3>
+                    <p class="text-gray-600">Drücke den Bildschirm sobald er grün wird!</p>
+                </div>
+
+                <div id="result-screen" class="hidden p-8 text-center" role="region" aria-live="polite" aria-atomic="true">
+                    <h3 class="text-2xl font-bold mb-4">Ergebnisse</h3>
+                    <div id="results-container" class="mb-6"></div>
+                    <button
+                        onclick="resetGame()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium focus:outline-none focus:ring-4 focus:ring-blue-300"
+                        type="button"
+                    >
+                        Nochmal spielen
+                    </button>
+                </div>
+            </div>
+
+            <div id="leaderboard" class="bg-white rounded-xl shadow-lg p-6 mt-8 fade-in">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Bestenliste</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse" role="table" aria-label="Bestenliste der Reaktionszeiten">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th scope="col" class="py-2 px-4 text-left border-b border-gray-300">Platz</th>
+                                <th scope="col" class="py-2 px-4 text-left border-b border-gray-300">Modus</th>
+                                <th scope="col" class="py-2 px-4 text-left border-b border-gray-300">Spieler</th>
+                                <th scope="col" class="py-2 px-4 text-left border-b border-gray-300">Zeit (ms)</th>
+                                <th scope="col" class="py-2 px-4 text-left border-b border-gray-300">Datum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body"></tbody>
+                    </table>
+                </div>
+                <div id="empty-leaderboard" class="text-center py-8 text-gray-500">
+                    <i class="fas fa-trophy text-4xl mb-2" aria-hidden="true"></i>
+                    <p>Noch keine Einträge vorhanden</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-6">
+        <div class="container mx-auto px-4 text-center">
+            <p>© 2023 Reaktionszeit-Test | Entwickelt mit <i class="fas fa-heart text-red-400" aria-hidden="true"></i> und JavaScript</p>
+            <div class="mt-4 flex justify-center space-x-4">
+                <a href="#" class="text-gray-300 hover:text-white" aria-label="GitHub"><i class="fab fa-github text-xl" aria-hidden="true"></i></a>
+                <a href="#" class="text-gray-300 hover:text-white" aria-label="Twitter"><i class="fab fa-twitter text-xl" aria-hidden="true"></i></a>
+                <a href="#" class="text-gray-300 hover:text-white" aria-label="Instagram"><i class="fab fa-instagram text-xl" aria-hidden="true"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let gameMode = null;
+        let startTime = null;
+        let reactionTimes = [];
+        let leaderboard = JSON.parse(localStorage.getItem('reactionLeaderboard')) || [];
+        let playerCount = 1;
+        let currentPlayer = 0;
+        let playerNames = [];
+        let gameState = 'waiting'; // waiting, counting, reacting, finished
+        let timeoutId = null;
+
+        const modeSelection = document.getElementById('mode-selection');
+        const gameArea = document.getElementById('game-area');
+        const gameModeTitle = document.getElementById('game-mode-title');
+        const waitingScreen = document.getElementById('waiting-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const resultsContainer = document.getElementById('results-container');
+        const playerAreas = document.getElementById('player-areas');
+        const timer = document.getElementById('timer');
+        const leaderboardBody = document.getElementById('leaderboard-body');
+        const emptyLeaderboard = document.getElementById('empty-leaderboard');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLeaderboard();
+        });
+
+        function startGame(mode) {
+            gameMode = mode;
+
+            switch (mode) {
+                case 'solo':
+                    playerCount = 1;
+                    gameModeTitle.textContent = 'Solo-Modus';
+                    break;
+                case 'duo':
+                    playerCount = 2;
+                    gameModeTitle.textContent = 'Duo-Modus';
+                    break;
+                case 'trio':
+                    playerCount = 3;
+                    gameModeTitle.textContent = 'Trio-Modus';
+                    break;
+            }
+
+            playerAreas.innerHTML = '';
+            playerNames = [];
+            reactionTimes = [];
+
+            for (let i = 0; i < playerCount; i++) {
+                const playerArea = document.createElement('div');
+                playerArea.className = `player-area p-4 border-b md:border-b-0 md:border-r border-gray-200 ${i === 0 ? 'bg-blue-50' : ''} cursor-pointer select-none`;
+                playerArea.id = `player-${i}`;
+                playerArea.setAttribute('role', 'button');
+                playerArea.setAttribute('tabindex', '0');
+                playerArea.setAttribute('aria-pressed', 'false');
+                playerArea.setAttribute('aria-label', `Spieler ${i + 1} Bereich, Status: Bereit`);
+                playerArea.innerHTML = `
+                    <div class="text-center">
+                        <div class="w-16 h-16 mx-auto rounded-full bg-gray-300 flex items-center justify-center text-xl font-bold mb-2">${i + 1}</div>
+                        <h3 class="font-medium">Spieler ${i + 1}</h3>
+                        <div class="reaction-time text-2xl font-mono font-bold my-2">-</div>
+                        <div class="status text-sm text-gray-500">Bereit</div>
+                    </div>
+                `;
+                playerAreas.appendChild(playerArea);
+
+                playerArea.addEventListener('click', () => handleReaction(i));
+                playerArea.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleReaction(i);
+                    }
+                });
+            }
+
+            modeSelection.classList.add('hidden');
+            gameArea.classList.remove('hidden');
+            waitingScreen.classList.remove('hidden');
+            resultScreen.classList.add('hidden');
+            timer.textContent = '0.000s';
+
+            currentPlayer = 0;
+            startNextRound();
+        }
+
+        function startNextRound() {
+            if (currentPlayer >= playerCount) {
+                endGame();
+                return;
+            }
+
+            gameState = 'waiting';
+            updatePlayerStatus(currentPlayer, 'Warte auf Start...');
+
+            const waitTime = Math.random() * 4000 + 1000;
+
+            timeoutId = setTimeout(() => {
+                startReactionTest();
+            }, waitTime);
+        }
+
+        function startReactionTest() {
+            gameState = 'reacting';
+            startTime = performance.now();
+            updatePlayerStatus(currentPlayer, 'JETZT DRÜCKEN!');
+
+            const playerArea = document.getElementById(`player-${currentPlayer}`);
+            playerArea.classList.add('bg-green-100', 'pulse');
+            playerArea.setAttribute('aria-pressed', 'true');
+
+            let animationFrameId;
+
+            function updateTimer() {
+                if (gameState !== 'reacting') {
+                    cancelAnimationFrame(animationFrameId);
+                    return;
+                }
+                const elapsed = performance.now() - startTime;
+                timer.textContent = `${elapsed.toFixed(3)}s`;
+                animationFrameId = requestAnimationFrame(updateTimer);
+            }
+            updateTimer();
+
+            timeoutId = setTimeout(() => {
+                if (gameState === 'reacting') {
+                    recordReactionTime(currentPlayer, null);
+                    nextPlayer();
+                }
+            }, 3000);
+        }
+
+        function handleReaction(playerIndex) {
+            if (gameState !== 'reacting' || playerIndex !== currentPlayer) return;
+
+            clearTimeout(timeoutId);
+            const reactionTime = performance.now() - startTime;
+            recordReactionTime(playerIndex, reactionTime);
+
+            nextPlayer();
+        }
+
+        function recordReactionTime(playerIndex, time) {
+            const playerArea = document.getElementById(`player-${playerIndex}`);
+
+            if (time === null) {
+                playerArea.querySelector('.reaction-time').textContent = 'Zu langsam!';
+                playerArea.querySelector('.status').textContent = 'Nicht reagiert';
+                reactionTimes[playerIndex] = null;
+            } else {
+                playerArea.querySelector('.reaction-time').textContent = `${time.toFixed(0)}ms`;
+                playerArea.querySelector('.status').textContent = 'Erfolgreich!';
+                reactionTimes[playerIndex] = time;
+            }
+
+            playerArea.classList.remove('bg-green-100', 'pulse');
+            playerArea.setAttribute('aria-pressed', 'false');
+        }
+
+        function nextPlayer() {
+            gameState = 'waiting';
+            currentPlayer++;
+
+            if (currentPlayer < playerCount) {
+                setTimeout(() => {
+                    startNextRound();
+                }, 1000);
+            } else {
+                setTimeout(() => {
+                    endGame();
+                }, 1000);
+            }
+        }
+
+        function endGame() {
+            gameState = 'finished';
+            waitingScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            timer.textContent = '0.000s';
+
+            resultsContainer.innerHTML = '';
+
+            const validTimes = reactionTimes.filter((time) => time !== null);
+            const averageTime =
+                validTimes.length > 0
+                    ? validTimes.reduce((sum, time) => sum + time, 0) / validTimes.length
+                    : null;
+
+            reactionTimes.forEach((time, index) => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'mb-4 p-3 bg-gray-100 rounded-lg';
+
+                let resultText;
+                if (time === null) {
+                    resultText = `Spieler ${index + 1}: Keine Reaktion`;
+                } else {
+                    resultText = `Spieler ${index + 1}: ${time.toFixed(0)}ms`;
+                }
+
+                if (playerCount > 1 && time !== null) {
+                    const isWinner = time === Math.min(...validTimes);
+                    if (isWinner) {
+                        resultDiv.classList.add('bg-yellow-100', 'border-l-4', 'border-yellow-400');
+                        resultText += ' 🏆';
+                    }
+                }
+
+                resultDiv.textContent = resultText;
+                resultsContainer.appendChild(resultDiv);
+            });
+
+            if (averageTime !== null && playerCount > 1) {
+                const avgDiv = document.createElement('div');
+                avgDiv.className = 'mt-4 p-3 bg-blue-100 rounded-lg font-medium';
+                avgDiv.textContent = `Durchschnitt: ${averageTime.toFixed(0)}ms`;
+                resultsContainer.appendChild(avgDiv);
+            }
+
+            if (validTimes.length > 0) {
+                const bestTime = Math.min(...validTimes);
+                const entry = {
+                    mode: gameMode,
+                    playerCount: playerCount,
+                    time: bestTime,
+                    date: new Date().toLocaleString(),
+                    players: Array.from({ length: playerCount }, (_, i) => ({
+                        number: i + 1,
+                        time: reactionTimes[i],
+                    })),
+                };
+
+                leaderboard.push(entry);
+                leaderboard.sort((a, b) => a.time - b.time);
+                if (leaderboard.length > 10) {
+                    leaderboard = leaderboard.slice(0, 10);
+                }
+                localStorage.setItem('reactionLeaderboard', JSON.stringify(leaderboard));
+                updateLeaderboard();
+            }
+        }
+
+        function resetGame() {
+            resultScreen.classList.add('hidden');
+            waitingScreen.classList.remove('hidden');
+            currentPlayer = 0;
+            reactionTimes = [];
+            timer.textContent = '0.000s';
+            startNextRound();
+        }
+
+        function updatePlayerStatus(playerIndex, status) {
+            const playerArea = document.getElementById(`player-${playerIndex}`);
+            if (playerArea) {
+                playerArea.querySelector('.status').textContent = status;
+                playerArea.setAttribute('aria-label', `Spieler ${playerIndex + 1} Bereich, Status: ${status}`);
+
+                document.querySelectorAll('.player-area').forEach((area) => {
+                    area.classList.remove('bg-blue-50');
+                });
+                playerArea.classList.add('bg-blue-50');
+            }
+        }
+
+        function updateLeaderboard() {
+            leaderboard.sort((a, b) => a.time - b.time);
+
+            leaderboardBody.innerHTML = '';
+
+            if (leaderboard.length === 0) {
+                emptyLeaderboard.classList.remove('hidden');
+                return;
+            }
+
+            emptyLeaderboard.classList.add('hidden');
+
+            leaderboard.forEach((entry, index) => {
+                const row = document.createElement('tr');
+                row.className = index % 2 === 0 ? 'bg-gray-50' : 'bg-white';
+
+                row.innerHTML = `
+                    <td class="py-2 px-4 border-b border-gray-200">${index + 1}</td>
+                    <td class="py-2 px-4 border-b border-gray-200">${getModeName(entry.mode)}</td>
+                    <td class="py-2 px-4 border-b border-gray-200">${entry.playerCount}</td>
+                    <td class="py-2 px-4 border-b border-gray-200 font-mono">${entry.time.toFixed(0)}ms</td>
+                    <td class="py-2 px-4 border-b border-gray-200">${entry.date}</td>
+                `;
+
+                leaderboardBody.appendChild(row);
+            });
+        }
+
+        function getModeName(mode) {
+            switch (mode) {
+                case 'solo':
+                    return 'Solo';
+                case 'duo':
+                    return 'Duo';
+                case 'trio':
+                    return 'Trio';
+                default:
+                    return mode;
+            }
+        }
+    </script>
+</body>
+</html>
